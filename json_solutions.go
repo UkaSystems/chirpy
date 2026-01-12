@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"slices"
+	"strings"
 )
 
 // Boot.dev approach to the JSON API handlers to validate chirp length:
@@ -34,12 +36,32 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	w.Write(dat)
 }
 
+var profanityList = []string{
+	"kerfuffle",
+	"sharbert",
+	"fornax",
+}
+
+func CleanChirp(body string) string {
+
+	split := strings.Split(body, " ")
+	for i, word := range split {
+		lowerWord := strings.ToLower(word)
+		if slices.Contains(profanityList, lowerWord) {
+			split[i] = strings.Repeat("*", 4)
+		}
+	}
+
+	return strings.Join(split, " ")
+}
+
 func handlerChirpsValidate(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		Body string `json:"body"`
 	}
 	type returnVals struct {
-		Valid bool `json:"valid"`
+		Valid       bool   `json:"valid"`
+		CleanedBody string `json:"cleaned_body"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -57,6 +79,7 @@ func handlerChirpsValidate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondWithJSON(w, http.StatusOK, returnVals{
-		Valid: true,
+		Valid:       true,
+		CleanedBody: CleanChirp(params.Body),
 	})
 }
