@@ -8,8 +8,12 @@ import (
 func main() {
 	var serveMux = http.NewServeMux()
 
-	var fileServer = http.FileServer(http.Dir("."))
-	serveMux.Handle("/", fileServer)
+	// serve static files from the current directory under /app/:
+	var fileServer = http.StripPrefix("/app", http.FileServer(http.Dir(".")))
+	serveMux.Handle("/app/", fileServer)
+
+	// readiness probe endpoint:
+	serveMux.Handle("/healthz", http.HandlerFunc(readinessHandler))
 
 	var server = &http.Server{
 		Addr:    ":8080",
