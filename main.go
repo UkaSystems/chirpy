@@ -29,9 +29,10 @@ func main() {
 	serveMux.Handle("/app/", apiCfg.middlewareMetricsInc(fileServer))
 
 	// readiness probe endpoint:
-	serveMux.Handle("GET /healthz", http.HandlerFunc(readinessHandler))
-	serveMux.Handle("GET /metrics", http.HandlerFunc(apiCfg.logRequestsNum))
-	serveMux.Handle("POST /reset", http.HandlerFunc(apiCfg.resetHitCounter))
+	serveMux.Handle("GET /api/healthz", http.HandlerFunc(readinessHandler))
+	serveMux.Handle("GET /api/metrics", http.HandlerFunc(apiCfg.logRequestsNum))
+	serveMux.Handle("GET /admin/metrics", http.HandlerFunc(apiCfg.adminMetricsHandler))
+	serveMux.Handle("POST /admin/reset", http.HandlerFunc(apiCfg.resetHitCounter))
 
 	var server = &http.Server{
 		Addr:    ":8080",
