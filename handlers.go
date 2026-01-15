@@ -137,3 +137,36 @@ func (cfg *apiConfig) adminResetHandler(w http.ResponseWriter, r *http.Request) 
 	cfg.fileserverHits.Store(0)
 	respondWithJSON(w, http.StatusOK, map[string]string{"message": "All users deleted successfully; hit counter reset to 0"})
 }
+
+func (cfg *apiConfig) getChirpsHandler(w http.ResponseWriter, r *http.Request) {
+	chirps, err := cfg.db.GetAllChirpsOrderedByCreatedAtAsc(r.Context())
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "500 Internal Server Error", err)
+		return
+	}
+
+	var sliceResp []ChirpResponse
+	for _, chirp := range chirps {
+		sliceResp = append(sliceResp, ChirpResponseFromDB(&chirp))
+	}
+
+	respondWithJSON(w, http.StatusOK, sliceResp)
+}
+
+func (cfg *apiConfig) getChirpByIDHandler(w http.ResponseWriter, r *http.Request) {
+	// Extract the chirp ID from the URL path
+	idStr := r.URL.Path[len("/api/chirps/"):]
+	chirpID, err := uuid.Parse(idStr)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "400 Bad Request", fmt.Errorf("invalid chirp ID: %v", err))
+		return
+	}
+
+	chirp, err := cfg.db.GetChirpByID(r.Context(), chirpID)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	resp := ChirpResponseFromDB(&chirp)
+	respondWithJSON(w, http.StatusOK, resp)
+}

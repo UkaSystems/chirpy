@@ -54,6 +54,8 @@ func main() {
 	serveMux.Handle("POST /api/chirps", http.HandlerFunc(apiCfg.handlerChirpsValidate))
 	serveMux.Handle("POST /api/users", http.HandlerFunc(apiCfg.createUserHandler))
 	serveMux.Handle("POST /admin/reset", http.HandlerFunc(apiCfg.adminResetHandler))
+	serveMux.Handle("GET /api/chirps", http.HandlerFunc(apiCfg.getChirpsHandler))
+	serveMux.Handle("GET /api/chirps/{id}", http.HandlerFunc(apiCfg.getChirpByIDHandler))
 	var server = &http.Server{
 		Addr:    ":8080",
 		Handler: serveMux,
