@@ -51,7 +51,7 @@ func main() {
 	serveMux.Handle("GET /api/metrics", http.HandlerFunc(apiCfg.logRequestsNum))
 	serveMux.Handle("GET /admin/metrics", http.HandlerFunc(apiCfg.adminMetricsHandler))
 
-	serveMux.Handle("POST /api/validate_chirp", http.HandlerFunc(handlerChirpsValidate))
+	serveMux.Handle("POST /api/chirps", http.HandlerFunc(apiCfg.handlerChirpsValidate))
 	serveMux.Handle("POST /api/users", http.HandlerFunc(apiCfg.createUserHandler))
 	serveMux.Handle("POST /admin/reset", http.HandlerFunc(apiCfg.adminResetHandler))
 	var server = &http.Server{

@@ -6,6 +6,9 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+
+	"github.com/UkaSystems/chirpy/internal/database"
+	"github.com/google/uuid"
 )
 
 // Boot.dev approach to the JSON API handlers to validate chirp length:
@@ -55,10 +58,12 @@ func CleanChirp(body string) string {
 	return strings.Join(split, " ")
 }
 
-func handlerChirpsValidate(w http.ResponseWriter, r *http.Request) {
+func (cfg *apiConfig) handlerChirpsValidate(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Body string `json:"body"`
+		Body   string    `json:"body"`
+		UserId uuid.UUID `json:"user_id"`
 	}
+
 	type returnVals struct {
 		Valid       bool   `json:"valid"`
 		CleanedBody string `json:"cleaned_body"`
@@ -78,8 +83,14 @@ func handlerChirpsValidate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondWithJSON(w, http.StatusOK, returnVals{
-		Valid:       true,
-		CleanedBody: CleanChirp(params.Body),
+	chirp, err := cfg.db.CreateChirp(r.Context(), database.CreateChirpParams{
+		Body:   CleanChirp(params.Body),
+		UserID: params.UserId,
 	})
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't create chirp", err)
+		return
+	}
+
+	respondWithJSON(w, http.StatusCreated, ChirpResponseFromDB(&chirp))
 }
