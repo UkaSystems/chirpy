@@ -2,8 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+
+	"github.com/google/uuid"
 )
 
 func readinessHandler(w http.ResponseWriter, r *http.Request) {
@@ -32,12 +35,12 @@ func (cfg *apiConfig) adminMetricsHandler(w http.ResponseWriter, r *http.Request
 	w.Write([]byte(html))
 }
 
-func (cfg *apiConfig) resetHitCounter(w http.ResponseWriter, r *http.Request) {
-	cfg.fileserverHits.Store(0)
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Hits counter reset to 0\n"))
-}
+// func (cfg *apiConfig) resetHitCounter(w http.ResponseWriter, r *http.Request) {
+// 	cfg.fileserverHits.Store(0)
+// 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+// 	w.WriteHeader(http.StatusOK)
+// 	w.Write([]byte("Hits counter reset to 0\n"))
+// }
 
 func (cfg *apiConfig) validateChirpHandler(w http.ResponseWriter, r *http.Request) {
 	type chirp struct {
@@ -83,4 +86,54 @@ func (cfg *apiConfig) validateChirpHandler(w http.ResponseWriter, r *http.Reques
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	w.Write(dat)
+}
+
+func (cfg *apiConfig) createUserHandler(w http.ResponseWriter, r *http.Request) {
+	type userPostReq struct {
+		Email string `json:"email"`
+	}
+
+	type userPostResp struct {
+		Id        uuid.UUID `json:"id"`
+		CreatedAt string    `json:"created_at"`
+		UpdatedAt string    `json:"updated_at"`
+		Email     string    `json:"email"`
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	req := userPostReq{}
+	err := decoder.Decode(&req)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid request payload: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	user, err := cfg.db.CreateUser(r.Context(), req.Email)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error creating user: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	resp := userPostResp{
+		Id:        user.ID,
+		CreatedAt: user.CreatedAt.String(),
+		UpdatedAt: user.UpdatedAt.String(),
+		Email:     user.Email,
+	}
+	respondWithJSON(w, http.StatusCreated, resp)
+}
+
+func (cfg *apiConfig) adminResetHandler(w http.ResponseWriter, r *http.Request) {
+	if cfg.platform != "dev" {
+		respondWithError(w, http.StatusForbidden, "403 Forbidden", errors.New("Not allowed"))
+		return
+	}
+
+	err := cfg.db.DeleteAllUsers(r.Context())
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "500 Internal Server Error", err)
+		return
+	}
+	cfg.fileserverHits.Store(0)
+	respondWithJSON(w, http.StatusOK, map[string]string{"message": "All users deleted successfully; hit counter reset to 0"})
 }

@@ -16,6 +16,7 @@ import (
 type apiConfig struct {
 	fileserverHits atomic.Int32
 	db             *database.Queries
+	platform       string
 }
 
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
@@ -30,12 +31,13 @@ func main() {
 	dbURL := os.Getenv("DB_URL")
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
-		fmt.Errorf("unable to connect to database: %v", err)
+		fmt.Println(fmt.Errorf("unable to connect to database: %v", err))
 		return
 	}
 	apiCfg := &apiConfig{
 		fileserverHits: atomic.Int32{},
 		db:             database.New(db),
+		platform:       os.Getenv("PLATFORM"),
 	}
 
 	var serveMux = http.NewServeMux()
@@ -48,9 +50,10 @@ func main() {
 	serveMux.Handle("GET /api/healthz", http.HandlerFunc(readinessHandler))
 	serveMux.Handle("GET /api/metrics", http.HandlerFunc(apiCfg.logRequestsNum))
 	serveMux.Handle("GET /admin/metrics", http.HandlerFunc(apiCfg.adminMetricsHandler))
-	serveMux.Handle("POST /admin/reset", http.HandlerFunc(apiCfg.resetHitCounter))
-	serveMux.Handle("POST /api/validate_chirp", http.HandlerFunc(handlerChirpsValidate))
 
+	serveMux.Handle("POST /api/validate_chirp", http.HandlerFunc(handlerChirpsValidate))
+	serveMux.Handle("POST /api/users", http.HandlerFunc(apiCfg.createUserHandler))
+	serveMux.Handle("POST /admin/reset", http.HandlerFunc(apiCfg.adminResetHandler))
 	var server = &http.Server{
 		Addr:    ":8080",
 		Handler: serveMux,
